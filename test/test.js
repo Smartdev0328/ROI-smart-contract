@@ -4,6 +4,7 @@ const {
 } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { ethers } = require("hardhat");
+const {expect} = require("chai")
 
 describe("Test", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -14,8 +15,18 @@ describe("Test", function () {
     const roi = await ethers.getContractFactory("DivineRoi");
     const roiContract = await roi.deploy("0xAB594600376Ec9fD91F8e885dADF0CE036862dE0");
     await roiContract.deposit({value:ethers.utils.parseEther("15")});
+    
+    //test deposit function
+    expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("15"));
+    
     const info = await roiContract.getDepositInfo(roi.signer.getAddress(), 0)
-    console.log("deposit:", info)
+    expect(info.amount).to.equal(ethers.utils.parseEther("15"));
+
+    await ethers.provider.send("evm_increaseTime", [3600*24*3]);
+    await roiContract.deposit({value:ethers.utils.parseEther("15")});
+    await ethers.provider.send("evm_increaseTime", [3600*24*3]);
+    await roiContract.withdraw();
+    //expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("30"));
   });
 
 
