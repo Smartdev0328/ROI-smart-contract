@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -21,6 +19,9 @@ contract DivineRoi is Ownable {
         uint128 start;
         uint128 end;
         uint256 lastWithdrawTime;
+        uint256 totalDeposit;
+        uint256 totalWithdrawed;
+        uint256 remainedAmount;
         mapping(uint128 => Deposit) deposits;
     }
 
@@ -87,6 +88,7 @@ contract DivineRoi is Ownable {
         _depositInfo[_msgSender()].deposits[newIdx].amount = msg.value;
         _depositInfo[_msgSender()].deposits[newIdx].deposit_time = block.timestamp;
         _depositInfo[_msgSender()].end ++;
+        _depositInfo[_msgSender()].totalDeposit += msg.value;
         emit DepositSuccess(_msgSender(), msg.value);
     }
 
@@ -109,7 +111,20 @@ contract DivineRoi is Ownable {
     function getDepositInfo(address addr, uint128 idx) public view returns (Deposit memory){
         return _depositInfo[addr].deposits[idx];
     }
+
+    /** 
+     * @dev  returns the amount of the totalDeposit
+     */
+    function getTotalDeposit(address addr) public view returns (uint256){
+        return _depositInfo[addr].totalDeposit;
+    }
     
+    /** 
+     * @dev  returns the amount of the totalEarnings
+     */
+    function getTotalEarnings(address addr) public view returns (uint256){
+        return _depositInfo[addr].totalWithdrawed + _depositInfo[addr].remainedAmount + calculateEarnings(addr);
+    }
     /** 
      * @dev  returns the current Price of Matic in USD.
      */
@@ -128,13 +143,16 @@ contract DivineRoi is Ownable {
     /** 
      * @dev  withdraw earnings from the system
      */
-    function withdraw() public {
+    function withdraw(uint256 amount) public {
+        uint256 remainings = _depositInfo[_msgSender()].remainedAmount;
         uint256 earnings = calculateEarnings(_msgSender());
-        console.log(earnings);
-        payable (_msgSender()).transfer(earnings);
+        require(remainings + earnings >= amount, "The amount exceed the earnings");
+        payable (_msgSender()).transfer(amount);
+        _depositInfo[_msgSender()].remainedAmount = remainings + earnings - amount;
         _updateDepositInfo(_msgSender());
         _depositInfo[_msgSender()].lastWithdrawTime = block.timestamp;
-        emit Withdraw(_msgSender(), earnings);
+        _depositInfo[_msgSender()].totalWithdrawed + amount;
+        emit Withdraw(_msgSender(), amount);
     }
     // function setReferer(address _referer) external {
     //     require(_referers[_msgSender()] == address(0), "Referer already set!");
