@@ -53,8 +53,9 @@ contract DivineRoi is Ownable {
     event Withdrawed(address withdrawer, uint256 amount);
     event ReferalWithdrawed(address withdrawer, uint256 amount);
 
-    constructor(address aggregatorAddr){
-        _priceFeed = AggregatorV3Interface(aggregatorAddr);
+    constructor(){
+        //_priceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0); //mainnet
+        _priceFeed = AggregatorV3Interface(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada); //mumbai testnet
         _minDeposit = 10*(1e18);
         _maxDeposit = 5000*(1e18);
         _fee = 5 * (1 ether);

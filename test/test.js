@@ -13,7 +13,7 @@ describe("Test", function () {
   it("Deploy & Deposit", async function () {
    // const [owner] = await ethers.getSigner();
     const roi = await ethers.getContractFactory("DivineRoi");
-    const roiContract = await roi.deploy("0xAB594600376Ec9fD91F8e885dADF0CE036862dE0");
+    const roiContract = await roi.deploy();
     await roiContract.deposit({value:ethers.utils.parseEther("15")});
     
     //test deposit function
