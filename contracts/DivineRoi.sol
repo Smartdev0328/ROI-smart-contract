@@ -25,27 +25,69 @@ contract DivineRoi is Ownable {
         mapping(uint128 => Deposit) deposits;
     }
 
+    struct ReferInfo{
+        uint8 level1Num;
+        uint8 level2Num;
+        uint256 referEarnings;
+    }
+
+
     address public admin;
     mapping(address => DepositSet) private _depositInfo;
+    mapping(address => ReferInfo) private _refers;
+    mapping(address => address) private _referers;
+
     uint256 private _minDeposit;
     uint256 private _maxDeposit;
-    IERC721 private _nft;
-    mapping(address => address) private _referers;
-    mapping(address => uint256) private _refers;
+    address private _nft;
+    uint256 private _fee;
+    uint256 private _totalDeposit;
     
     AggregatorV3Interface private _priceFeed;
+
+    uint256 _leaderNum;
 
     
     event DepositSuccess(address sender, uint256 amount);
     event SetReferer(address referer, address referee);
-    event Withdraw(address withdrawer, uint256 amount);
+    event Withdrawed(address withdrawer, uint256 amount);
+    event ReferalWithdrawed(address withdrawer, uint256 amount);
 
     constructor(address aggregatorAddr){
         _priceFeed = AggregatorV3Interface(aggregatorAddr);
         _minDeposit = 10*(1e18);
         _maxDeposit = 5000*(1e18);
+        _fee = 5 * (1 ether);
     }
 
+    /**
+     *  @dev set nft address
+     */
+    function setNFT(address addr) external onlyOwner {
+        _nft = addr;
+    }
+
+    /**
+     *  @dev get nft address
+     */
+    function getNFT() public view returns (address){
+        return _nft;
+    }
+
+    /**
+     *  @dev set fee.
+     */
+    function setFee(uint8 fee) external onlyOwner {
+        _fee = fee * (1 ether);
+    }
+
+    /**
+     *  @dev set minimum limit of deposit.
+     */
+    function getFee() public view returns (uint256){
+        return _fee;
+    }
+    
     /**
      *  @dev set minimum limit of deposit.
      */
@@ -76,6 +118,13 @@ contract DivineRoi is Ownable {
         return (_maxDeposit/price)*1e18;
     }
 
+    /**
+     * @dev returns the amount of max deposit value in Matic
+     */
+    function getTotalDeposit() public view returns (uint256){
+        return (_totalDeposit);
+    }
+
     /** 
      * @dev  deposit function
      */
@@ -85,10 +134,14 @@ contract DivineRoi is Ownable {
         require(msg.value > minLimit, "insufficient amount!");
         require(msg.value < maxLimit, "exceed the maximum amount!");
         uint128 newIdx = _depositInfo[_msgSender()].end;
-        _depositInfo[_msgSender()].deposits[newIdx].amount = msg.value;
+        _depositInfo[_msgSender()].deposits[newIdx].amount = msg.value - _fee;
         _depositInfo[_msgSender()].deposits[newIdx].deposit_time = block.timestamp;
         _depositInfo[_msgSender()].end ++;
-        _depositInfo[_msgSender()].totalDeposit += msg.value;
+        _depositInfo[_msgSender()].totalDeposit += msg.value - _fee;
+        _totalDeposit += msg.value;
+        if(_referers[msg.sender] != address(0)){
+            _addReferalEarnings(_referers[msg.sender], msg.value);
+        }
         emit DepositSuccess(_msgSender(), msg.value);
     }
 
@@ -152,16 +205,10 @@ contract DivineRoi is Ownable {
         _updateDepositInfo(_msgSender());
         _depositInfo[_msgSender()].lastWithdrawTime = block.timestamp;
         _depositInfo[_msgSender()].totalWithdrawed + amount;
-        emit Withdraw(_msgSender(), amount);
+        emit Withdrawed(_msgSender(), amount);
     }
-    // function setReferer(address _referer) external {
-    //     require(_referers[_msgSender()] == address(0), "Referer already set!");
-    //     require(_msgSender() != _referer, "Referer already set!");
-    //     //require(_deposits[_msgSender()].amount != 0, "You need to deposit before setReferer!");
-    //     _referers[_msgSender()] = _referer;
-    //     _refers[_referer] = _refers[_referer] + 1;
-    //     emit SetReferer(_referer, _msgSender());
-    // }
+    
+    
 
     /** 
      * @dev  returns the amount of earnings from the system
@@ -169,6 +216,9 @@ contract DivineRoi is Ownable {
     function calculateEarnings(address addr) public view returns (uint256){
         uint256 earnings = _calculateBasicBonus(addr);
         earnings += _calculateHolderBonus(addr);
+        earnings += _calculateNFTBonus(addr);
+        earnings += _calculateMilestoneBonus(addr);
+        earnings += _calculateLeadershipBonus(addr);
         return earnings;
     }
     
@@ -221,10 +271,74 @@ contract DivineRoi is Ownable {
         }
         return bonus;
     }
-    // function _calculateHolderBonus() internal view returns(uint256){
 
-    // }
-    // function _withdraw(uint256 _amount) external {
+    /** 
+     * @dev  returns the amount of earnings from nft bonus
+     * double of basic bonus : 2%;
+     */
+    function _calculateNFTBonus(address addr) internal view returns(uint256){
+        if(IERC721(_nft).balanceOf(addr) == 0) return 0;
+        return 2 * _calculateBasicBonus(addr);
+    }
 
-    // }
+    /** 
+     * @dev  returns the amount of earnings from milestone bonus
+     */
+
+    function _calculateMilestoneBonus(address addr) internal view returns(uint256){
+        if(_totalDeposit < 1000000 * (1 ether)) return 0;
+        if(!_checkLeader(addr)) return 0;
+        if(_leaderNum == 0) return 0;        
+        return 20000 * (1 ether) / _leaderNum;
+    }
+
+    /** 
+     * @dev  returns the amount of earnings from leadership bonus
+     * same as basic bonus : 1%;
+     */
+
+    function _calculateLeadershipBonus(address addr) internal view returns(uint256){
+        if(!_checkLeader(addr)) return 0;
+        return _calculateBasicBonus(addr);
+    }
+    /** 
+     * @dev  returns if the parameter address is the leader or not
+     */
+
+    function _checkLeader(address addr) internal view returns(bool){
+       if(_refers[addr].level1Num >= 10 && _refers[addr].level2Num >= 10 ) return true;
+       return false;
+    }
+    
+    /** 
+     * @dev  returns the amount of earnings from milestone bonus
+     */
+    function refer(address addr) external {
+        require(_depositInfo[_msgSender()].totalDeposit == 0, "You are not a community member, plz deposit!");
+        require(_referers[addr] == address(0), "That address is already refered by another");
+        require(_depositInfo[addr].totalDeposit == 0, "That address have already deposited");
+        _referers[addr] = _msgSender();
+        _refers[_msgSender()].level1Num ++;
+        if(_referers[_msgSender()] != address(0)){
+            _refers[_referers[_msgSender()]].level2Num ++;
+        }
+        emit SetReferer(addr, _msgSender());
+    }
+
+    function _addReferalEarnings(address addr, uint256 amount) internal {
+        address tmpAddr = addr;
+        for (uint8 i =0; i< 5; i++){
+            if(_refers[tmpAddr].level1Num == 0) break;
+            else{
+               _refers[tmpAddr].referEarnings += amount * (10 - i *2)/100;
+            }
+            tmpAddr = _referers[tmpAddr];
+        }
+    }
+
+    function withdrawReferalEarnings() external {
+        require(_refers[msg.sender].referEarnings!=0, "You have no referal Earnings");
+        payable(address(this)).transfer(_refers[msg.sender].referEarnings);
+        emit ReferalWithdrawed(msg.sender, _refers[msg.sender].referEarnings);
+    }
 }
