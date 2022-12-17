@@ -26,9 +26,9 @@ contract DivineRoi is Ownable {
     }
 
     struct ReferInfo{
-        uint8 level1Num;
-        uint8 level2Num;
+        uint256[5] levelPeopleNum;
         uint256 referEarnings;
+        uint256 withdrawed;
     }
 
 
@@ -177,7 +177,11 @@ contract DivineRoi is Ownable {
      * @dev  returns the amount of the totalEarnings
      */
     function getTotalEarnings(address addr) public view returns (uint256){
-        return _depositInfo[addr].totalWithdrawed + _depositInfo[addr].remainedAmount + calculateEarnings(addr);
+        return _depositInfo[addr].totalWithdrawed + 
+                _depositInfo[addr].remainedAmount + 
+                calculateEarnings(addr) +
+                _refers[addr].withdrawed +
+                _refers[addr].referEarnings;
     }
     /** 
      * @dev  returns the current Price of Matic in USD.
@@ -218,7 +222,7 @@ contract DivineRoi is Ownable {
         uint256 earnings = _calculateBasicBonus(addr);
         earnings += _calculateHolderBonus(addr);
         earnings += _calculateNFTBonus(addr);
-        earnings += _calculateMilestoneBonus(addr);
+         earnings += _calculateMilestoneBonus(addr);
         earnings += _calculateLeadershipBonus(addr);
         return earnings;
     }
@@ -307,7 +311,7 @@ contract DivineRoi is Ownable {
      */
 
     function _checkLeader(address addr) internal view returns(bool){
-       if(_refers[addr].level1Num >= 10 && _refers[addr].level2Num >= 10 ) return true;
+       if(_refers[addr].levelPeopleNum[0] >= 10 && _refers[addr].levelPeopleNum[1] >= 10 ) return true;
        return false;
     }
     
@@ -319,9 +323,12 @@ contract DivineRoi is Ownable {
         require(_referers[addr] == address(0), "That address is already refered by another");
         require(_depositInfo[addr].totalDeposit == 0, "That address have already deposited");
         _referers[addr] = _msgSender();
-        _refers[_msgSender()].level1Num ++;
-        if(_referers[_msgSender()] != address(0)){
-            _refers[_referers[_msgSender()]].level2Num ++;
+        address tmpAddr = _msgSender();
+        uint8 count;
+        while(tmpAddr != address(0) && count<5){
+            _refers[tmpAddr].levelPeopleNum[count] ++;
+            count++;
+            tmpAddr = _referers[tmpAddr];
         }
         emit SetReferer(addr, _msgSender());
     }
@@ -329,7 +336,7 @@ contract DivineRoi is Ownable {
     function _addReferalEarnings(address addr, uint256 amount) internal {
         address tmpAddr = addr;
         for (uint8 i =0; i< 5; i++){
-            if(_refers[tmpAddr].level1Num == 0) break;
+            if(_refers[tmpAddr].levelPeopleNum[0] == 0) break;
             else{
                _refers[tmpAddr].referEarnings += amount * (10 - i *2)/100;
             }
@@ -341,5 +348,19 @@ contract DivineRoi is Ownable {
         require(_refers[msg.sender].referEarnings!=0, "You have no referal Earnings");
         payable(address(this)).transfer(_refers[msg.sender].referEarnings);
         emit ReferalWithdrawed(msg.sender, _refers[msg.sender].referEarnings);
+        _refers[msg.sender].withdrawed += _refers[msg.sender].referEarnings;
+        _refers[msg.sender].referEarnings = 0;
+    }
+
+    function getTeamNum(address addr) public view returns (uint256){
+        return _refers[addr].levelPeopleNum[0] +
+                _refers[addr].levelPeopleNum[1] +
+                _refers[addr].levelPeopleNum[2] +
+                _refers[addr].levelPeopleNum[3] +
+                _refers[addr].levelPeopleNum[4]; 
+    }
+
+    function getReferalWithdraw(address addr) public view returns (uint256){
+        return _refers[addr].referEarnings;
     }
 }
