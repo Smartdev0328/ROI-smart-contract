@@ -14,20 +14,23 @@ describe("Test", function () {
    // const [owner] = await ethers.getSigner();
     const roi = await ethers.getContractFactory("DivineRoi");
     const roiContract = await roi.deploy();
-    await roiContract.deposit({value:ethers.utils.parseEther("15")});
+    await roiContract.deposit({value:ethers.utils.parseEther("20")});
     
     //test deposit function
-    expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("15"));
+    expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("20"));
     
     const info = await roiContract.getDepositInfo(roi.signer.getAddress(), 0)
     expect(info.amount).to.equal(ethers.utils.parseEther("15"));
 
-    await ethers.provider.send("evm_increaseTime", [3600*24*3]);
     await roiContract.deposit({value:ethers.utils.parseEther("15")});
-    await ethers.provider.send("evm_increaseTime", [3600*24*3]);
-    await roiContract.withdraw();
-    //expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("30"));
+    console.log(await ethers.provider.getBalance(roiContract.address));
+    let result = await roiContract.calculateEarnings(roi.signer.getAddress());
+    console.log(result);
+    await roiContract.withdraw(ethers.utils.parseEther("0.015"));
+    console.log(await ethers.provider.getBalance(roiContract.address));
+    await roiContract.withdraw(ethers.utils.parseEther("0.015"));
+    result = await roiContract.calculateEarnings(roi.signer.getAddress());
+    console.log(result);
+    console.log(await ethers.provider.getBalance(roiContract.address));
   });
-
-
 });

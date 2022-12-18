@@ -151,11 +151,12 @@ contract DivineRoi is Ownable {
      */
     function _updateDepositInfo(address addr) internal {
         uint128 idx = _depositInfo[addr].start;
-        uint256 before120DaysTime = block.timestamp - (120 days);
-        while(_depositInfo[addr].deposits[idx].deposit_time != 0 && 
+        uint256 before120DaysTime = block.timestamp - (120 days) + (1 days);
+        while(_depositInfo[addr].start < _depositInfo[addr].end && 
             _depositInfo[addr].deposits[idx].deposit_time < before120DaysTime) 
         {
             _depositInfo[addr].start ++;
+            idx ++;
         }
     }
 
@@ -219,10 +220,14 @@ contract DivineRoi is Ownable {
      * @dev  returns the amount of earnings from the system
      */
     function calculateEarnings(address addr) public view returns (uint256){
+
         uint256 earnings = _calculateBasicBonus(addr);
         earnings += _calculateHolderBonus(addr);
-        earnings += _calculateNFTBonus(addr);
-         earnings += _calculateMilestoneBonus(addr);
+        if(_nft != address(0)){
+            earnings += _calculateNFTBonus(addr);
+        }
+        earnings += _calculateMilestoneBonus(addr);
+
         earnings += _calculateLeadershipBonus(addr);
         return earnings;
     }
@@ -235,16 +240,17 @@ contract DivineRoi is Ownable {
         uint256 currentTime = block.timestamp;
         uint128 idx = _depositInfo[addr].start;
         uint256 bonus = 0;
-        while(idx <= _depositInfo[addr].end){
+        while(idx < _depositInfo[addr].end){
             uint256 lastWithdrawTime = _depositInfo[addr].lastWithdrawTime;
-            uint256 earningDays = (currentTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days);
+            uint256 earningDays = (currentTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days) + 1;
             if(earningDays > 120) earningDays = 120;
             if(_depositInfo[addr].deposits[idx].deposit_time < lastWithdrawTime){
-                earningDays -= lastWithdrawTime - _depositInfo[addr].deposits[idx].deposit_time;
+                earningDays -= (lastWithdrawTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days)+1;
             }
             bonus += _depositInfo[addr].deposits[idx].amount * earningDays / 100;
             idx++;
         }
+
         return bonus;
     }
 
@@ -258,12 +264,12 @@ contract DivineRoi is Ownable {
         uint256 currentTime = block.timestamp;
         uint128 idx = _depositInfo[addr].start;
         uint256 bonus = 0;
-        while(idx <= _depositInfo[addr].end){
+        while(idx < _depositInfo[addr].end){
             uint256 lastWithdrawTime = _depositInfo[addr].lastWithdrawTime;
-            uint256 earningDays = (currentTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days);
+            uint256 earningDays = (currentTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days) + 1;
             if(earningDays > 120) earningDays = 120;
             if(_depositInfo[addr].deposits[idx].deposit_time < lastWithdrawTime){
-                earningDays -= lastWithdrawTime - _depositInfo[addr].deposits[idx].deposit_time;
+                earningDays -= (lastWithdrawTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days) + 1;
             }
             bonus += _depositInfo[addr].deposits[idx].amount * earningDays / 200 ;
             if(earningDays > (5 days)){
