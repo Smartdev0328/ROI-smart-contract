@@ -175,6 +175,13 @@ contract DivineRoi is Ownable {
     }
     
     /** 
+     * @dev  returns the amount of the withdrawal
+     */
+    function getWithdrawableBalance(address addr) public view returns (uint256){
+        return calculateEarnings(addr) + _depositInfo[addr].remainedAmount;
+    }
+    
+    /** 
      * @dev  returns the amount of the totalEarnings
      */
     function getTotalEarnings(address addr) public view returns (uint256){
