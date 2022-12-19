@@ -332,7 +332,8 @@ contract DivineRoi is Ownable {
      * @dev  returns the amount of earnings from milestone bonus
      */
     function refer(address addr) external {
-        require(_depositInfo[_msgSender()].totalDeposit == 0, "You are not a community member, plz deposit!");
+        require(_msgSender()!= addr, "You can not refer yourself!");
+        require(_depositInfo[_msgSender()].totalDeposit != 0, "You are not a community member, plz deposit!");
         require(_referers[addr] == address(0), "That address is already refered by another");
         require(_depositInfo[addr].totalDeposit == 0, "That address have already deposited");
         _referers[addr] = _msgSender();
