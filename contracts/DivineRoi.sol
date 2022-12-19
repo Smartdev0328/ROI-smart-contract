@@ -122,7 +122,7 @@ contract DivineRoi is Ownable {
     /**
      * @dev returns the amount of max deposit value in Matic
      */
-    function getTotalDeposit() public view returns (uint256){
+    function getAllDeposit() public view returns (uint256){
         return (_totalDeposit);
     }
 
@@ -217,7 +217,7 @@ contract DivineRoi is Ownable {
         _depositInfo[_msgSender()].remainedAmount = remainings + earnings - amount;
         _updateDepositInfo(_msgSender());
         _depositInfo[_msgSender()].lastWithdrawTime = block.timestamp;
-        _depositInfo[_msgSender()].totalWithdrawed + amount;
+        _depositInfo[_msgSender()].totalWithdrawed += amount;
         emit Withdrawed(_msgSender(), amount);
     }
     
