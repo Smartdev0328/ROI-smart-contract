@@ -14,7 +14,7 @@ describe("Test", function () {
    // const [owner] = await ethers.getSigner();
     const roi = await ethers.getContractFactory("DivineRoi");
     const roiContract = await roi.deploy();
-    await roiContract.deposit({value:ethers.utils.parseEther("20")});
+    await roiContract.deposit(10,{value:ethers.utils.parseEther("20")});
     
     //test deposit function
     expect(await ethers.provider.getBalance(roiContract.address)).to.equal(ethers.utils.parseEther("20"));
@@ -22,7 +22,7 @@ describe("Test", function () {
     const info = await roiContract.getDepositInfo(roi.signer.getAddress(), 0)
     expect(info.amount).to.equal(ethers.utils.parseEther("15"));
 
-    await roiContract.deposit({value:ethers.utils.parseEther("15")});
+    await roiContract.deposit(10,{value:ethers.utils.parseEther("15")});
     console.log(await ethers.provider.getBalance(roiContract.address));
     let result = await roiContract.calculateEarnings(roi.signer.getAddress());
     console.log(result);

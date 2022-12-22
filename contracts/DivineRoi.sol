@@ -36,13 +36,15 @@ contract DivineRoi is Ownable {
     mapping(address => DepositSet) private _depositInfo;
     mapping(address => ReferInfo) private _refers;
     mapping(address => address) private _referers;
-
+    mapping(uint256 => address) addrFromCode;
+    
     uint256 private _minDeposit;
     uint256 private _maxDeposit;
     address private _nft;
     uint256 private _fee;
     uint256 private _totalDeposit;
-    
+
+
     AggregatorV3Interface private _priceFeed;
 
     uint256 _leaderNum;
@@ -129,7 +131,7 @@ contract DivineRoi is Ownable {
     /** 
      * @dev  deposit function
      */
-    function deposit() external payable {
+    function deposit(uint256 referCode) external payable {
         uint256 minLimit = getMinDepositInMatic();
         uint256 maxLimit = getMaxDepositInMatic();
         require(msg.value > minLimit, "insufficient amount!");
@@ -140,10 +142,18 @@ contract DivineRoi is Ownable {
         _depositInfo[_msgSender()].end ++;
         _depositInfo[_msgSender()].totalDeposit += msg.value - _fee;
         _totalDeposit += msg.value;
-        if(_referers[msg.sender] != address(0)){
-            _addReferalEarnings(_referers[msg.sender], msg.value);
+        address addr = addrFromCode[referCode];
+        if(addr != address(0)){
+            refered(msg.sender, addr);
+            _addReferalEarnings(addr, msg.value);
         }
         emit DepositSuccess(_msgSender(), msg.value);
+        uint256 code;
+        code = uint256(keccak256(abi.encodePacked(msg.sender))) % 100000000;
+        if(addrFromCode[code] == address(0)) {
+            addrFromCode[code] = msg.sender;
+        }
+        console.log(code);
     }
 
     /** 
@@ -278,12 +288,14 @@ contract DivineRoi is Ownable {
             if(_depositInfo[addr].deposits[idx].deposit_time < lastWithdrawTime){
                 earningDays -= (lastWithdrawTime - _depositInfo[addr].deposits[idx].deposit_time)/(1 days) + 1;
             }
-            bonus += _depositInfo[addr].deposits[idx].amount * earningDays / 200 ;
             if(earningDays > (5 days)){
                 bonus += _depositInfo[addr].deposits[idx].amount * (earningDays-5) / 200 ;
             }
             if(earningDays > (10 days)){
                 bonus += _depositInfo[addr].deposits[idx].amount * (earningDays-10) / 200 ;
+            }
+            if(earningDays > (15 days)){
+                bonus += _depositInfo[addr].deposits[idx].amount * (earningDays-15) / 200 ;
             }
             idx++;
         }
@@ -331,20 +343,18 @@ contract DivineRoi is Ownable {
     /** 
      * @dev  returns the amount of earnings from milestone bonus
      */
-    function refer(address addr) external {
-        require(_msgSender()!= addr, "You can not refer yourself!");
-        require(_depositInfo[_msgSender()].totalDeposit != 0, "You are not a community member, plz deposit!");
-        require(_referers[addr] == address(0), "That address is already refered by another");
-        require(_depositInfo[addr].totalDeposit == 0, "That address have already deposited");
-        _referers[addr] = _msgSender();
-        address tmpAddr = _msgSender();
+    function refered(address addr, address referer) internal {
+        require(referer!= addr, "You can not refered by yourself!");
+        require(_referers[addr] == address(0), "You are already refered by another");
+        _referers[addr] = referer;
+        address tmpAddr = referer;
         uint8 count;
         while(tmpAddr != address(0) && count<5){
             _refers[tmpAddr].levelPeopleNum[count] ++;
             count++;
             tmpAddr = _referers[tmpAddr];
         }
-        emit SetReferer(addr, _msgSender());
+        emit SetReferer(addr, referer);
     }
 
     function _addReferalEarnings(address addr, uint256 amount) internal {
@@ -376,5 +386,15 @@ contract DivineRoi is Ownable {
 
     function getReferalWithdraw(address addr) public view returns (uint256){
         return _refers[addr].referEarnings;
+    }
+
+    function getCodeFromAddr(address addr) public pure returns (uint256){
+        uint256 code;
+        code = uint256(keccak256(abi.encodePacked(addr))) % 100000000;
+        return code;
+    }
+
+    function getAddrFromCode(uint256 code) public view returns (address){
+        return addrFromCode[code];
     }
 }
